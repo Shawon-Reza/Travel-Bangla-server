@@ -38,6 +38,7 @@ async function run() {
         const Admin = database.collection("Admin");
         const admintravelposts = database.collection("admintravelposts");
         const reviews = database.collection("reviews");
+        const userdetails = database.collection("userdetails");
 
 
         app.get('/travelPosts', async (req, res) => {
@@ -45,7 +46,6 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result);
         });
-
 
         // Admin route for login (using GET)
         app.get("/travelBangla/admin", async (req, res) => {
@@ -71,7 +71,6 @@ async function run() {
                 return res.status(500).send({ valid: false, message: "Internal server error" });
             }
         });
-
 
         await haiku.createIndex({ expiryAt: 1 }, { expireAfterSeconds: 0 });
         app.post('/travelpostadd', async (req, res) => {
@@ -118,6 +117,7 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result)
         })
+
         app.get('/travelpostdetails/:_id', async (req, res) => {
             try {
                 const _id = req.params._id;
@@ -145,7 +145,34 @@ async function run() {
             }
         });
 
+        app.delete('/admin/review/:_id', async (req, res) => {
+            const _id = req.params._id
+            const query = { _id: new ObjectId(_id) };
+            const result = await reviews.deleteOne(query);
+            res.send(result)
 
+        })
+
+        // USer Details................
+        app.post('/userdetails', async (req, res) => {
+            try {
+                const userData = req.body;
+
+                const query = { uid: userData.uid };
+                const existingUser = await userdetails.findOne(query);
+
+                if (existingUser) {
+                    const result = await userdetails.insertOne(userData);
+                    return (res.status(200).send({ message: 'User already exits', user: existingUser.displayName }))
+                }
+
+                const result = await userdetails.insertOne(userData);
+                res.status(201).json({ message: 'User created successfully', result });
+            } catch (error) {
+                console.error("Error inserting user : ", error)
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        })
 
 
     } finally {
