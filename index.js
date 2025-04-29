@@ -212,16 +212,20 @@ async function run() {
 
             if (req.user !== email) {
                 console.log('assss');
-                return res.send({ message: 'Unauthorized, Token email not matched , Are you Froud ???????' })
+                return res.send({ message: 'Unauthorized, Token email not matched , Are you Fraud ???????' })
             }
             const query = { email: email };
             const result = await userdetails.findOne(query)
             res.send(result)
         })
 
-        app.get('/userOwnPost', async (req, res) => {
+        app.get('/userOwnPost', tokenVerified, async (req, res) => {
             const email = req.query.email
 
+            if (req.user !== email) {
+                console.log('assss');
+                return res.send({ message: 'Unauthorized, Token email not matched , Are you Fraud ???????' })
+            }
 
             const query = { postOwner: email };
             const cursor = haiku.find(query);
@@ -233,17 +237,27 @@ async function run() {
         // JWt token manage.................
         app.post('/jwt', (req, res) => {
             const user = req.body;
-
+            // Create jwt Token
             const token = jwt.sign(user, process.env.JWT_SECRET, {
                 expiresIn: '1h'
             })
-
+            // Store Jwt token 
             res
                 .cookie('token', token, {
                     httpOnly: true,
                     secure: false
                 })
                 .send({ message: 'Cookie store successfull' })
+        })
+        // Remove token when user signout
+
+        app.post('/logout', (req, res) => {
+            res
+                .clearCookie('token', {
+                    httpOnly: true,
+                    secure: false
+                })
+                .send({ message: 'Logout, JWT token cleared' })
         })
 
 
