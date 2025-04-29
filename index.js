@@ -2,13 +2,21 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser');
 
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors(
+    {
+        origin: 'http://localhost:5173',
+        credentials: true
+    }
+));
 app.use(express.json());
+app.use(cookieParser())
 
 
 const uri = `mongodb+srv://${process.env.MON_USER_NAME}:${process.env.MON_PASSWORD}@travel-bangla-cluster-0.dqjbkyt.mongodb.net/?appName=travel-bangla-cluster-0`;
@@ -22,6 +30,30 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
+
+const tokenVerified = (req, res, next) => {
+    const token = req.cookies.token;
+    // console.log(token);
+
+    if (!token) {
+        return res
+            .send({ message: 'Unauthorized, Token not found, Are you froud ?' })
+            .status(401)
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET,
+        function (err, decoded) {
+            // console.log(decoded)
+            if (err) {
+                return res.send({ message: 'Unauthorize, Invalid token' })
+            }
+            // console.log(decoded.email);
+            req.user = decoded.email;
+            next();
+        });
+}
+
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -36,6 +68,7 @@ async function run() {
         const admintravelposts = database.collection("admintravelposts");
         const reviews = database.collection("reviews");
         const userdetails = database.collection("userdetails");
+
 
 
         app.get('/travelPosts', async (req, res) => {
@@ -171,8 +204,16 @@ async function run() {
             }
         })
 
-        app.get('/userdetails', async (req, res) => {
+
+
+        // get user details by email
+        app.get('/userdetails', tokenVerified, async (req, res) => {
             const email = req.query.email
+
+            if (req.user !== email) {
+                console.log('assss');
+                return res.send({ message: 'Unauthorized, Token email not matched , Are you Froud ???????' })
+            }
             const query = { email: email };
             const result = await userdetails.findOne(query)
             res.send(result)
@@ -180,11 +221,29 @@ async function run() {
 
         app.get('/userOwnPost', async (req, res) => {
             const email = req.query.email
+
+
             const query = { postOwner: email };
             const cursor = haiku.find(query);
             const result = await cursor.toArray();
             res.send(result)
 
+        })
+
+        // JWt token manage.................
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+
+            const token = jwt.sign(user, process.env.JWT_SECRET, {
+                expiresIn: '1h'
+            })
+
+            res
+                .cookie('token', token, {
+                    httpOnly: true,
+                    secure: false
+                })
+                .send({ message: 'Cookie store successfull' })
         })
 
 
