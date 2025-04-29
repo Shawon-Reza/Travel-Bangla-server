@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config()
 
 
 const app = express();
@@ -10,11 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 
-
-// gNxXYrZGwP5ggGZF
-// travel_bangla
-
-const uri = "mongodb+srv://travel_bangla:gNxXYrZGwP5ggGZF@travel-bangla-cluster-0.dqjbkyt.mongodb.net/?appName=travel-bangla-cluster-0";
+const uri = `mongodb+srv://${process.env.MON_USER_NAME}:${process.env.MON_PASSWORD}@travel-bangla-cluster-0.dqjbkyt.mongodb.net/?appName=travel-bangla-cluster-0`;
 
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -153,7 +150,7 @@ async function run() {
 
         })
 
-        // USer Details................
+        // USer Details.....................................
         app.post('/userdetails', async (req, res) => {
             try {
                 const userData = req.body;
@@ -172,6 +169,22 @@ async function run() {
                 console.error("Error inserting user : ", error)
                 res.status(500).json({ message: 'Internal server error' });
             }
+        })
+
+        app.get('/userdetails', async (req, res) => {
+            const email = req.query.email
+            const query = { email: email };
+            const result = await userdetails.findOne(query)
+            res.send(result)
+        })
+
+        app.get('/userOwnPost', async (req, res) => {
+            const email = req.query.email
+            const query = { postOwner: email };
+            const cursor = haiku.find(query);
+            const result = await cursor.toArray();
+            res.send(result)
+
         })
 
 
