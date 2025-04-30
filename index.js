@@ -37,15 +37,18 @@ const tokenVerified = (req, res, next) => {
 
     if (!token) {
         return res
-            .send({ message: 'Unauthorized, Token not found, Are you froud ?' })
             .status(401)
+            .send({ message: 'Unauthorized, Token not found, Are you froud ?' })
+
     }
 
     jwt.verify(token, process.env.JWT_SECRET,
         function (err, decoded) {
             // console.log(decoded)
             if (err) {
-                return res.send({ message: 'Unauthorize, Invalid token' })
+                return res
+                    .status(401)
+                    .send({ message: 'Unauthorize, Invalid token' })
             }
             // console.log(decoded.email);
             req.user = decoded.email;
@@ -72,9 +75,19 @@ async function run() {
 
 
         app.get('/travelPosts', async (req, res) => {
+            const currentPage = parseInt(req.query.page) || 0
+            const limit = parseInt(req.query.limit) || 6
+            const skip = currentPage * limit
+
+            console.log(currentPage, limit);
             const cursor = haiku.find(); // Use TravelPost collection
-            const result = await cursor.toArray();
+            const result = await cursor.skip(skip).limit(limit).toArray();
             res.send(result);
+        });
+        app.get('/travelPostscount', async (req, res) => {
+            const count = await haiku.estimatedDocumentCount();
+            // console.log(count);
+            res.send(count);
         });
 
         // Admin route for login (using GET)
@@ -223,8 +236,9 @@ async function run() {
             const email = req.query.email
 
             if (req.user !== email) {
-                console.log('assss');
-                return res.send({ message: 'Unauthorized, Token email not matched , Are you Fraud ???????' })
+                return res.status(401).send({ message: 'Unauthorized, Token not matched , Are you Fraud ???????' });
+
+
             }
 
             const query = { postOwner: email };
@@ -245,7 +259,7 @@ async function run() {
             res
                 .cookie('token', token, {
                     httpOnly: true,
-                    secure: false
+                    secure: process.env.NODE_ENV === 'production'
                 })
                 .send({ message: 'Cookie store successfull' })
         })
@@ -255,7 +269,7 @@ async function run() {
             res
                 .clearCookie('token', {
                     httpOnly: true,
-                    secure: false
+                    secure: process.env.NODE_ENV === 'production'
                 })
                 .send({ message: 'Logout, JWT token cleared' })
         })
