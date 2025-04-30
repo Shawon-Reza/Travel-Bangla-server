@@ -79,7 +79,7 @@ async function run() {
             const limit = parseInt(req.query.limit) || 6
             const skip = currentPage * limit
 
-            console.log(currentPage, limit);
+            // console.log(currentPage, limit);
             const cursor = haiku.find(); // Use TravelPost collection
             const result = await cursor.skip(skip).limit(limit).toArray();
             res.send(result);
@@ -205,7 +205,6 @@ async function run() {
                 const existingUser = await userdetails.findOne(query);
 
                 if (existingUser) {
-                    const result = await userdetails.insertOne(userData);
                     return (res.status(200).send({ message: 'User already exits', user: existingUser.displayName }))
                 }
 
@@ -273,6 +272,23 @@ async function run() {
                 })
                 .send({ message: 'Logout, JWT token cleared' })
         })
+
+        // User Profile Update
+
+        app.put('/userdetails/update', async (req, res) => {
+            const { email, gender, location, phone } = req.body;
+            const result = await userdetails.updateOne(
+                { email },
+                {
+                    $set: {
+                        gender,
+                        location,
+                        phone,
+                    }
+                }
+            );
+            res.send(result);
+        });
 
 
     } finally {
