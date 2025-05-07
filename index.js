@@ -72,6 +72,7 @@ async function run() {
         const reviews = database.collection("reviews");
         const userdetails = database.collection("userdetails");
         const tourbookedlist = database.collection("tourbookedlist");
+        const favoritelist = database.collection("favoritelist");
 
 
 
@@ -157,6 +158,7 @@ async function run() {
             const result = await admintravelposts.insertOne(data);
             res.send(result)
         })
+        //////////////////////////Boked list///////////////
         app.post('/admin/travelposts/Booked', async (req, res) => {
             const data = req.body;
         
@@ -176,6 +178,33 @@ async function run() {
         
                 const result = await tourbookedlist.insertOne(data);
                 res.send({ success: true, message: "Booking successful", insertedId: result.insertedId });
+        
+            } catch (error) {
+                console.error("Booking error:", error);
+                res.status(500).send({ success: false, message: "Server error" });
+            }
+        });
+        ///////////////////////////////Favorite List/////////////////
+        app.post('/admin/travelposts/favorite', async (req, res) => {
+            const data = req.body;
+            console.log(data);
+        
+            try {
+                // Check if this user already booked this post
+                const existingBooking = await favoritelist.findOne({
+                    postId: data.postId,
+                    userId: data.userId
+                });
+        
+                if (existingBooking) {
+                    return res.status(400).send({ success: false, message: "Already in favorite list" });
+                }
+        
+                // Add a timestamp (optional but useful)
+                data.createdAt = new Date();
+        
+                const result = await favoritelist.insertOne(data);
+                res.send({ success: true, message: "Add favorite successful ", insertedId: result.insertedId });
         
             } catch (error) {
                 console.error("Booking error:", error);
