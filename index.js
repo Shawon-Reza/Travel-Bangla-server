@@ -140,7 +140,7 @@ async function run() {
         app.get('/admin/travelposts', async (req, res) => {
             const page = parseInt(req.query.page) || 1;   // default to 0
             const limit = parseInt(req.query.limit) || 6; // default to 6
-            const skip= (page-1)*limit
+            const skip = (page - 1) * limit
             const cursor = admintravelposts.find();
             const result = await cursor.skip(skip).limit(limit).toArray();
             res.send(result)
@@ -161,24 +161,24 @@ async function run() {
         //////////////////////////Boked list///////////////
         app.post('/admin/travelposts/Booked', async (req, res) => {
             const data = req.body;
-        
+
             try {
                 // Check if this user already booked this post
                 const existingBooking = await tourbookedlist.findOne({
                     postId: data.postId,
                     userId: data.userId
                 });
-        
+
                 if (existingBooking) {
                     return res.status(400).send({ success: false, message: "Already booked" });
                 }
-        
+
                 // Add a timestamp (optional but useful)
                 data.createdAt = new Date();
-        
+
                 const result = await tourbookedlist.insertOne(data);
                 res.send({ success: true, message: "Booking successful", insertedId: result.insertedId });
-        
+
             } catch (error) {
                 console.error("Booking error:", error);
                 res.status(500).send({ success: false, message: "Server error" });
@@ -187,28 +187,62 @@ async function run() {
         ///////////////////////////////Favorite List/////////////////
         app.post('/admin/travelposts/favorite', async (req, res) => {
             const data = req.body;
-            console.log(data);
-        
+
             try {
                 // Check if this user already booked this post
                 const existingBooking = await favoritelist.findOne({
                     postId: data.postId,
                     userId: data.userId
                 });
-        
+
                 if (existingBooking) {
                     return res.status(400).send({ success: false, message: "Already in favorite list" });
                 }
-        
+
                 // Add a timestamp (optional but useful)
                 data.createdAt = new Date();
-        
+
                 const result = await favoritelist.insertOne(data);
                 res.send({ success: true, message: "Add favorite successful ", insertedId: result.insertedId });
-        
+
             } catch (error) {
                 console.error("Booking error:", error);
                 res.status(500).send({ success: false, message: "Server error" });
+            }
+        });
+        app.get('/favoritelist', async (req, res) => {
+            try {
+                const email = req.query.email;        
+                const result = await favoritelist.aggregate([
+                    {
+                        $match: { userEmail: email }
+                    },
+                    {
+                        $addFields: {
+                            postObjId: { $toObjectId: "$postId" }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'admintravelposts', // Matches your travel post collection
+                            localField: 'postObjId',
+                            foreignField: '_id',
+                            as: 'postDetails'
+                        }
+                    },
+                    {
+                        $unwind: "$postDetails"
+                    },
+                    {
+                        $replaceRoot: { newRoot: "$postDetails" }
+                    }
+                ]).toArray();
+        
+                res.send(result);
+        
+            } catch (error) {
+                console.error("Error fetching favorite posts:", error);
+                res.status(500).send({ error: "Failed to fetch favorite list" });
             }
         });
         
