@@ -71,6 +71,7 @@ async function run() {
         const admintravelposts = database.collection("admintravelposts");
         const reviews = database.collection("reviews");
         const userdetails = database.collection("userdetails");
+        const tourbookedlist = database.collection("tourbookedlist");
 
 
 
@@ -136,10 +137,19 @@ async function run() {
 
         // For Admin page...........................
         app.get('/admin/travelposts', async (req, res) => {
+            const page = parseInt(req.query.page) || 1;   // default to 0
+            const limit = parseInt(req.query.limit) || 6; // default to 6
+            const skip= (page-1)*limit
             const cursor = admintravelposts.find();
-            const result = await cursor.toArray();
+            const result = await cursor.skip(skip).limit(limit).toArray();
             res.send(result)
         })
+
+        app.get('/admin/travelpostsCount', async (req, res) => {
+            const count = await admintravelposts.estimatedDocumentCount()
+            res.send(count)
+        })
+
 
         app.post('/admin/travelposts', async (req, res) => {
             const data = req.body;
@@ -147,6 +157,32 @@ async function run() {
             const result = await admintravelposts.insertOne(data);
             res.send(result)
         })
+        app.post('/admin/travelposts/Booked', async (req, res) => {
+            const data = req.body;
+        
+            try {
+                // Check if this user already booked this post
+                const existingBooking = await tourbookedlist.findOne({
+                    postId: data.postId,
+                    userId: data.userId
+                });
+        
+                if (existingBooking) {
+                    return res.status(400).send({ success: false, message: "Already booked" });
+                }
+        
+                // Add a timestamp (optional but useful)
+                data.createdAt = new Date();
+        
+                const result = await tourbookedlist.insertOne(data);
+                res.send({ success: true, message: "Booking successful", insertedId: result.insertedId });
+        
+            } catch (error) {
+                console.error("Booking error:", error);
+                res.status(500).send({ success: false, message: "Server error" });
+            }
+        });
+        
 
         app.post('/admin/reviews', async (req, res) => {
             const data = req.body;
@@ -274,7 +310,6 @@ async function run() {
         })
 
         // User Profile Update
-
         app.put('/userdetails/update', async (req, res) => {
             const { email, gender, location, phone } = req.body;
             const result = await userdetails.updateOne(
