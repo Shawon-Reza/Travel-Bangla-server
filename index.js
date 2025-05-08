@@ -11,7 +11,12 @@ const port = process.env.PORT || 5000;
 
 app.use(cors(
     {
-        origin: 'http://localhost:5173',
+        origin: [
+            'http://localhost:5173',
+            'https://travel-bangla-4e034.web.app',
+            'https://travel-bangla-4e034.firebaseapp.com'
+
+        ],
         credentials: true
     }
 ));
@@ -60,10 +65,10 @@ const tokenVerified = (req, res, next) => {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        // await client.db("admin").command({ ping: 1 });
+        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         const database = client.db("Travel_Bangla");
         const haiku = database.collection("TravelPost");
@@ -184,6 +189,45 @@ async function run() {
                 res.status(500).send({ success: false, message: "Server error" });
             }
         });
+        //////////////////////Favorite List full details(Aggrigrate) ///////////////
+        app.get('/bookedlist', async (req, res) => {
+            try {
+                const email = req.query.email;
+                const result = await tourbookedlist.aggregate([
+                    {
+                        $match: { userEmail: email }
+                    },
+                    {
+                        $addFields: {
+                            postObjId: { $toObjectId: "$postId" }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'admintravelposts', // Matches your travel post collection
+                            localField: 'postObjId',
+                            foreignField: '_id',
+                            as: 'postDetails'
+                        }
+                    },
+                    {
+                        $unwind: "$postDetails"
+                    },
+                    {
+                        $replaceRoot: { newRoot: "$postDetails" }
+                    }
+                ]).toArray();
+                console.log(result);
+
+                res.send(result);
+
+            } catch (error) {
+                console.error("Error fetching favorite posts:", error);
+                res.status(500).send({ error: "Failed to fetch favorite list" });
+            }
+        });
+
+
         ///////////////////////////////Favorite List/////////////////
         app.post('/admin/travelposts/favorite', async (req, res) => {
             const data = req.body;
@@ -210,9 +254,10 @@ async function run() {
                 res.status(500).send({ success: false, message: "Server error" });
             }
         });
+        //////////////////////Favorite List full details(Aggrigrate) ///////////////
         app.get('/favoritelist', async (req, res) => {
             try {
-                const email = req.query.email;        
+                const email = req.query.email;
                 const result = await favoritelist.aggregate([
                     {
                         $match: { userEmail: email }
@@ -237,15 +282,15 @@ async function run() {
                         $replaceRoot: { newRoot: "$postDetails" }
                     }
                 ]).toArray();
-        
+
                 res.send(result);
-        
+
             } catch (error) {
                 console.error("Error fetching favorite posts:", error);
                 res.status(500).send({ error: "Failed to fetch favorite list" });
             }
         });
-        
+
 
         app.post('/admin/reviews', async (req, res) => {
             const data = req.body;
@@ -317,27 +362,27 @@ async function run() {
 
 
 
-        // get user details by email
-        app.get('/userdetails', tokenVerified, async (req, res) => {
+        // get user details by email , tokenVerified
+        app.get('/userdetails', async (req, res) => {
             const email = req.query.email
 
-            if (req.user !== email) {
-                console.log('assss');
-                return res.send({ message: 'Unauthorized, Token email not matched , Are you Fraud ???????' })
-            }
+            // if (req.user !== email) {
+            //     console.log('assss');
+            //     return res.send({ message: 'Unauthorized, Token email not matched , Are you Fraud ???????' })
+            // }
             const query = { email: email };
             const result = await userdetails.findOne(query)
             res.send(result)
         })
 
-        app.get('/userOwnPost', tokenVerified, async (req, res) => {
+        app.get('/userOwnPost', async (req, res) => {
             const email = req.query.email
 
-            if (req.user !== email) {
-                return res.status(401).send({ message: 'Unauthorized, Token not matched , Are you Fraud ???????' });
+            // if (req.user !== email) {
+            //     return res.status(401).send({ message: 'Unauthorized, Token not matched , Are you Fraud ???????' });
 
 
-            }
+            // }
 
             const query = { postOwner: email };
             const cursor = haiku.find(query);
@@ -357,7 +402,8 @@ async function run() {
             res
                 .cookie('token', token, {
                     httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production'
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict"
                 })
                 .send({ message: 'Cookie store successfull' })
         })
@@ -367,7 +413,8 @@ async function run() {
             res
                 .clearCookie('token', {
                     httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production'
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict"
                 })
                 .send({ message: 'Logout, JWT token cleared' })
         })
